@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gachipper_noc</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f6f8;
+            color: #2c3e50;
+            margin: 0;
+            padding: 30px;
+        }
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
+        }
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .form-group { margin-bottom: 16px; }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #4f5959;
+        }
+        input[type="file"], input[type="text"], textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+        input:focus, textarea:focus { outline: none; border-color: #409eff; }
+        textarea {
+            height: 300px;
+            font-family: "Courier New", Courier, monospace;
+            background: #fafafa;
+            line-height: 1.4;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button {
+            background-color: #409eff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover { background-color: #66b1ff; }
+        .btn-copy { background-color: #409eff; }
+        .btn-copy:hover { background-color: #409eff; }
+        .btn-end { background-color: #409eff; }
+        .btn-end:hover { background-color: #409eff; }
+        .btn-increment { background-color: #909399; margin: 0; padding: 8px 12px; }
+        .btn-increment:hover { background-color: #a6a9ad; }
+        .grid-3 { display: flex; gap: 15px; }
+        .grid-3 .form-group { flex: 1; }
+        .input-group { display: flex; gap: 5px; }
+        .checkbox-list {
+            border: 1px solid #dcdfe6;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .checkbox-item input { margin-top: 2px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>gachipper tool for transpro</h2>
+    
+    <div class="form-group">
+        <label for="logFile">Input </label>
+        <input type="file" id="logFile" accept=".txt,.csv" onchange="processLog()">
+    </div>
+    
+    <div class="form-group" id="filterArea" style="display: none;">
+        <label style="color: #e6a23c;">All links</label>
+        <div class="checkbox-list" id="linkCheckboxes"></div>
+    </div>
+
+    <div class="grid-3">
+        <div class="form-group">
+            <label for="ticketNo">Ticket Number</label>
+            <div class="input-group">
+                <input type="text" id="ticketNo" value="3252" oninput="generateOutput()">
+                <button type="button" class="btn-increment" onclick="incrementTicket()">+1</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="cause">Nguyên nhân</label>
+            <input type="text" id="cause" value="" oninput="generateOutput()">
+        </div>
+        <div class="form-group">
+            <label for="handler">FO</label>
+            <input type="text" id="handler" value="Sỹ/ tpcom" oninput="generateOutput()">
+        </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 20px;">
+        <label for="result">Output Báo Cáo</label>
+        <textarea id="result" placeholder="output in here"></textarea>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn-copy" onclick="copyResult(this)">Copy </button>
+        <button class="btn-end" onclick="convertToEndReport()">Close ticket </button>
+        <button onclick="generateOutput()" title="Làm mới lại toàn bộ text thành Báo Cáo Bắt Đầu">Reset ticket</button>
+    </div>
+</div>
+
+<script>
+let globalLinks = [];
+
+function incrementTicket() {
+    const ticketInput = document.getElementById('ticketNo');
+    let currentVal = parseInt(ticketInput.value, 10);
+    if (!isNaN(currentVal)) {
+        ticketInput.value = currentVal + 1;
+        generateOutput();
+    }
+}
+
+function processLog() {
+    const fileInput = document.getElementById('logFile');
+    if (fileInput.files.length === 0) return;
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/);
+        
+        if (lines.length <= 1) {
+            alert("Empty or invalid file format.");
+            return;
+        }
+
+        const header = lines[0].split(';');
+        const devIdx = header.indexOf('Device');
+        const intIdx = header.indexOf('Interface');
+        const descIdx = header.indexOf('Description');
+        const timeIdx = header.indexOf('Datetime');
+
+        if (devIdx === -1 || intIdx === -1 || descIdx === -1 || timeIdx === -1) {
+            alert("Header columns mismatch.");
+            return;
+        }
+
+        let uniqueLinks = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) continue;
+            
+            let parts = line.split(';');
+            if (parts.length <= Math.max(devIdx, intIdx, descIdx, timeIdx)) continue;
+
+            let device = parts[devIdx];
+            let interfaceName = parts[intIdx];
+            let description = parts[descIdx];
+            let datetimeStr = parts[timeIdx];
+
+            let combinedStr = (device + " " + interfaceName + " " + description).toUpperCase();
+            if (combinedStr.includes('CSG')) continue; 
+
+            let descParts = description.split('_PO_');
+            let routeKey = descParts[0].replace('TO_', '');
+            let remoteInt = descParts.length > 1 ? descParts[1].split('_')[0] : '';
+
+            let devA = device.toUpperCase().replace(/[-_]/g, '');
+            let devB = routeKey.toUpperCase().replace(/[-_]/g, '');
+
+            let portA = interfaceName.replace(/[^\d\/]/g, '');
+            let portB = remoteInt.replace(/[^\d\/]/g, '');
+
+            let endpoints = [`${devA}:${portA}`, `${devB}:${portB}`].sort().join('<->');
+
+            let existing = uniqueLinks.find(item => item.endpoints === endpoints);
+            if (!existing) {
+                uniqueLinks.push({
+                    endpoints: endpoints,
+                    text: `${device} ${interfaceName} ${description}`,
+                    time: datetimeStr 
+                });
+            } else {
+                if (datetimeStr < existing.time) {
+                    existing.time = datetimeStr;
+                }
+            }
+        }
+        
+        globalLinks = uniqueLinks.map((item, index) => ({
+            id: index,
+            text: item.text,
+            time: item.time
+        }));
+
+        renderCheckboxes();
+        generateOutput();
+    };
+
+    reader.readAsText(file, 'utf-8');
+}
+
+function renderCheckboxes() {
+    const container = document.getElementById('linkCheckboxes');
+    container.innerHTML = '';
+    
+    if (globalLinks.length === 0) {
+        container.innerHTML = '<i>Không tìm thấy link nào phù hợp (không phải CSG) trong file log.</i>';
+    } else {
+        globalLinks.forEach(link => {
+            const div = document.createElement('label');
+            div.className = 'checkbox-item';
+            div.innerHTML = `
+                <input type="checkbox" checked value="${link.id}" onchange="generateOutput()">
+                <span>[${link.time.split(' ')[1]}] ${link.text}</span>
+            `;
+            container.appendChild(div);
+        });
+    }
+    document.getElementById('filterArea').style.display = 'block';
+}
+
+function generateOutput() {
+    if (globalLinks.length === 0) {
+        document.getElementById('result').value = "";
+        return;
+    }
+
+    const checkboxes = document.querySelectorAll('#linkCheckboxes input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        document.getElementById('result').value = "Bạn chưa chọn link nào để tạo báo cáo!";
+        return;
+    }
+
+    const ticketNo = document.getElementById('ticketNo').value.trim();
+    const cause = document.getElementById('cause').value.trim();
+    const handler = document.getElementById('handler').value.trim();
+    const operator = "nam.nguyen"; 
+
+    let selectedStartTime = "";
+    let selectedTexts = [];
+    
+    checkboxes.forEach(cb => {
+        const linkObj = globalLinks.find(l => l.id == cb.value);
+        if (linkObj) {
+            selectedTexts.push(linkObj.text);
+            
+            if (!selectedStartTime || linkObj.time < selectedStartTime) {
+                selectedStartTime = linkObj.time;
+            }
+        }
+    });
+
+    let prefix = ticketNo ? `IPTD_${ticketNo}` : "IPTD_XXXX";
+    let output = `${prefix}_FO_NETMN_Q09 BÁO CÁO: \n`;
+    output += "SỰ CỐ BẮT ĐẦU\n";
+    output += "Tên sự cố: downlink\n";
+    
+    selectedTexts.forEach(text => {
+        output += text + "\n";
+    });
+
+    output += "Thời gian sự cố: \n";
+    output += `+ Bắt đầu: ${selectedStartTime}\n`;
+    output += "+ Kết thúc:\n";
+    output += "Mức độ ảnh hưởng:\n";
+    output += "- Về mặt mạng lưới: \n";
+    output += "- Về mặt dịch vụ: không ảnh hưởng dịch vụ\n";
+    output += `Nguyên nhân: ${cause}\n`;
+    output += "Các bước xử lý: \n";
+    output += "Nhân sự điều hành, xử lý\n";
+    output += `- Điều hành: ${operator}\n`;
+    output += `- Nhân sự FO/ Xử lý: ${handler}`;
+
+    document.getElementById('result').value = output;
+}
+
+
+function convertToEndReport() {
+    let text = document.getElementById("result").value;
+    
+    if (!text || text === "Bạn chưa chọn link nào để tạo báo cáo!") {
+        alert("Chưa có báo cáo nào để chuyển đổi!");
+        return;
+    }
+
+    
+    let now = new Date();
+    let endTime = new Date(now.getTime() - (5 * 60 * 1000));
+    
+    let year = endTime.getFullYear();
+    let month = String(endTime.getMonth() + 1).padStart(2, '0');
+    let day = String(endTime.getDate()).padStart(2, '0');
+    let hours = String(endTime.getHours()).padStart(2, '0');
+    let minutes = String(endTime.getMinutes()).padStart(2, '0');
+    let seconds = String(endTime.getSeconds()).padStart(2, '0');
+    
+    let timeString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+    
+    text = text.replace(/SỰ CỐ BẮT ĐẦU/gi, "SỰ CỐ kết thúc");
+    text = text.replace(/\+ Kết thúc:.*/gi, "+ Kết thúc: " + timeString);
+
+    document.getElementById("result").value = text;
+}
+
+function copyResult(btn) {
+    const resultBox = document.getElementById('result');
+    if (!resultBox.value || resultBox.value === "Bạn chưa chọn link nào để tạo báo cáo!") return;
+    
+    resultBox.select();
+    document.execCommand('copy');
+    
+    
+    const originalText = btn.innerText;
+    btn.innerText = "gachipper";
+    btn.style.backgroundColor = "#409eff";
+    setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.backgroundColor = ""; 
+    }, 1500);
+}
+</script>
+
+</body>
+</html>
