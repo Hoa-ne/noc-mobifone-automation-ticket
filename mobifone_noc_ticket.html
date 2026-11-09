@@ -292,21 +292,21 @@ function generateOutput() {
     let prefix = ticketNo ? `IPTD_${ticketNo}` : "IPTD_XXXX";
     let output = `${prefix}_FO_NETMN_Q09 BÁO CÁO: \n`;
     output += "SỰ CỐ BẮT ĐẦU\n";
-    output += "Tên sự cố: downlink\n";
+    output += "1. Tên sự cố: downlink\n";
     
     selectedTexts.forEach(text => {
         output += text + "\n";
     });
 
-    output += "Thời gian sự cố: \n";
+    output += "2. Thời gian sự cố: \n";
     output += `+ Bắt đầu: ${selectedStartTime}\n`;
     output += "+ Kết thúc:\n";
-    output += "Mức độ ảnh hưởng:\n";
+    output += "3. Mức độ ảnh hưởng:\n";
     output += "- Về mặt mạng lưới: \n";
     output += "- Về mặt dịch vụ: không ảnh hưởng dịch vụ\n";
-    output += `Nguyên nhân: ${cause}\n`;
-    output += "Các bước xử lý: \n";
-    output += "Nhân sự điều hành, xử lý\n";
+    output += `4. Nguyên nhân: ${cause}\n`;
+    output += "5.Các bước xử lý: \n";
+    output += "6. Nhân sự điều hành, xử lý\n";
     output += `- Điều hành: ${operator}\n`;
     output += `- Nhân sự FO/ Xử lý: ${handler}`;
 
