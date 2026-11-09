@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobifone SmartW
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  gachipper
 // @match        *://smartw.mobifone.vn/smartw/*form.htm*
 // @grant        none
@@ -22,7 +22,7 @@
 
         const btn = document.createElement('button');
         btn.id = 'btnAutoFillForm';
-        btn.innerHTML = ' gachipper';
+        btn.innerHTML = 'gachipper';
         btn.style.position = 'fixed';
         btn.style.top = '10px';
         btn.style.right = '250px';
@@ -62,7 +62,7 @@
                 } catch (err) {}
 
                 if (!text || !text.includes("Tên sự cố")) {
-                    text = prompt(" Trình duyệt chặn tự động đọc.\nBấm Ctrl+V để dán Log vào đây:");
+                    text = prompt("Trình duyệt chặn tự động đọc.\nBấm Ctrl+V để dán Log vào đây:");
                 }
 
                 if (!text || !text.includes("Tên sự cố")) {
@@ -70,9 +70,8 @@
                     return;
                 }
 
-                btn.innerText = " Đang xử lý...";
+                btn.innerText = "Đang xử lý...";
 
-                
                 let tenSuCo = text.match(/(?:1\.\s*)?Tên sự cố:\s*([\s\S]*?)(?=(?:2\.\s*)?Thời gian)/i)?.[1]?.trim();
                 let tgBatDau = text.match(/\+\s*Bắt đầu:\s*([^\r\n]*)/i)?.[1]?.trim();
                 let nhanSuFO = text.match(/-\s*Nhân sự FO\/ Xử lý:\s*([^\r\n]*)/i)?.[1]?.trim();
@@ -96,7 +95,6 @@
 
                 let timeStartParsed = tgBatDau ? formatTime(tgBatDau) : "";
 
-                
                 let lowerText = text.toLowerCase();
                 let vendorValue = 'CISCO';
 
@@ -113,9 +111,17 @@
                     vendorValue = 'CISCO';
                 }
 
+                let currentUsername = "";
+                try {
+                    let userSpan = document.querySelector('.username b');
+                    if (userSpan) {
+                        let rawText = userSpan.innerText || userSpan.textContent;
+                        currentUsername = rawText.split('(')[0].trim().split(/\s+/)[0].trim();
+                    }
+                } catch(e) {}
+
                 let injectionCode = `
                     try {
-                        // 1. Gán text thuần
                         $('#tenSuCo').val(${JSON.stringify(finalTenSuCo)});
                         $('#moTa').val(${JSON.stringify(finalTenSuCo)});
                         $('#tgBatDau').val('${timeStartParsed}');
@@ -125,10 +131,8 @@
                         $('#doiTacXlNgoai').val('${actionText}');
                         $('#bienPhapXl').val('${actionText}');
                         
-                        // Bỏ tick ô Gửi Email
                         $('#guiEmail').prop('checked', false);
 
-                        // 2. Ép jQWidgets nhận lệnh
                         setTimeout(() => {
                             if($('#mangSuCo').length) $('#mangSuCo').jqxDropDownList('checkItem', 'TRUYEN_DAN');
                             if($('#nguyenNhanSc').length) $('#nguyenNhanSc').jqxDropDownList('selectItem', 'Lỗi do các đơn vị khác');
@@ -136,13 +140,13 @@
                             if($('#mucDo').length) $('#mucDo').jqxDropDownList('selectItem', 'Nhỏ');
                             if($('#vendor').length) $('#vendor').jqxComboBox('selectItem', '${vendorValue}');
 
-                            // 3. Dropdown thuần
                             $('#loaiSuCoTruyenDan').val('Cáp').trigger('change');
                             $('#phongBanXl').val('Đài VHKT miền Nam').trigger('change');
 
-                            // 4. Chọn Người xử lý (Cần chờ Phòng load)
                             setTimeout(() => {
-                                if($('#nguoiXuLy').length) $('#nguoiXuLy').jqxComboBox('checkItem', 'hoa.chau10');
+                                if($('#nguoiXuLy').length && '${currentUsername}' !== '') {
+                                    $('#nguoiXuLy').jqxComboBox('checkItem', '${currentUsername}');
+                                }
                                 if($('#nguyenNhanSc').length) $('#nguyenNhanSc').jqxComboBox('selectItem', 'Lỗi do các đơn vị khác');
                             }, 1000);
                         }, 200);
@@ -154,12 +158,11 @@
 
                 executeScript(injectionCode);
 
-                setTimeout(() => { btn.innerText = ' đã bị gàchipper'; }, 500);
-                setTimeout(() => { btn.innerText = ' đã bị gàchipper'; }, 3500);
+                setTimeout(() => { btn.innerText = 'gachipper'; }, 1000);
 
             } catch (error) {
                 console.error(error);
-                btn.innerText = ' Lỗi! F5 thử lại';
+                btn.innerText = 'Lỗi! F5 thử lại';
             }
         };
     }
